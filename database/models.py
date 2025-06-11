@@ -20,6 +20,7 @@ class User(Base):
     
     # Relationships
     conversations = relationship("Conversation", back_populates="user")
+    crew_jobs = relationship("CrewJob", back_populates="user")
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -31,8 +32,9 @@ class Conversation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    user = relationship("User", back_populates="conversations")  #Each Conversation belongs to one User, and that User has all their conversations accessible via .conversations.
+    user = relationship("User", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    crew_jobs = relationship("CrewJob", back_populates="conversation")
 
 class Message(Base):
     __tablename__ = "messages"
@@ -41,7 +43,7 @@ class Message(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
     role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
     content = Column(Text, nullable=False)
-    meta_info = Column(JSON, default={})  # Store additional info like tokens, model used, etc.
+    meta_infos = Column(JSON, default={})  # Store additional info like tokens, model used, etc.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
