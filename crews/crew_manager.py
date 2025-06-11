@@ -1,110 +1,93 @@
 import os
 from crewai import Agent, Task, Crew, Process
 from dotenv import load_dotenv
+from typing import List, Dict
 
-# Load environment variables
 load_dotenv()
 
-def create_crew():
-    """Create and return a crew with researcher and writer agents"""
+def create_crew_with_context(conversation_context: List[Dict] = None):
+    """Create crew with conversation context"""
     
-    # Define agents
+    context_prompt = ""
+    if conversation_context:
+        context_prompt = "\n\nPrevious conversation context:\n"
+        for msg in conversation_context[-5:]:  # Use last 5 messages
+            context_prompt += f"{msg['role']}: {msg['content'][:200]}...\n"
+        context_prompt += "\nUse this context to provide more relevant and personalized responses.\n"
+    
     researcher = Agent(
         role='Senior Research Analyst',
-        goal='Conduct thorough research on {topic} and provide comprehensive insights',
+        goal='Conduct thorough research on {topic} considering previous conversation context',
         verbose=True,
         memory=True,
-        backstory="""You are a senior research analyst with expertise in gathering 
-        and analyzing information from various sources. You have a keen eye for detail 
-        and can identify key trends, opportunities, and challenges in any given topic.""",
+        backstory=f"""You are a senior research analyst with expertise in gathering 
+        and analyzing information. You maintain conversation continuity and build upon 
+        previous discussions.{context_prompt}""",
         max_iter=3,
         allow_delegation=False
     )
     
     writer = Agent(
         role='Content Writer',
-        goal='Write a compelling and informative article about {topic}',
+        goal='Write compelling content about {topic} that builds on previous conversation',
         verbose=True,
         memory=True,
-        backstory="""You are an experienced content writer who specializes in 
-        transforming complex research into engaging, easy-to-understand articles. 
-        You have a talent for storytelling and making technical topics accessible 
-        to a broad audience.""",
+        backstory=f"""You are an experienced content writer who creates engaging content 
+        while maintaining conversation continuity and referencing previous discussions 
+        when relevant.{context_prompt}""",
         max_iter=3,
         allow_delegation=False
     )
     
-    # Define tasks
     research_task = Task(
-        description="""
-        Research the topic: {topic}
+        description=f"""
+        Research the topic: {{topic}}
+        
+        {context_prompt}
         
         Your research should include:
         1. Key concepts and definitions
-        2. Current trends and developments
-        3. Pros and cons
-        4. Real-world applications or examples
-        5. Future outlook
-        
-        Gather information from reliable sources and provide citations where possible.
+        2. Current trends and developments  
+        3. Connection to previous conversation topics (if any)
+        4. Pros and cons
+        5. Real-world applications
         """,
-        expected_output="""A detailed research report with:
-        - Executive summary
-        - Key findings (minimum 5 points)
-        - Pros and cons analysis
-        - Current trends
-        - Future predictions
-        - Sources and references""",
-        agent=researcher,
-        output_file="research_report.md"
+        expected_output="A detailed research report with conversation continuity",
+        agent=researcher
     )
     
     write_task = Task(
-        description="""
-        Based on the research provided, write an engaging article about {topic}.
+        description=f"""
+        Write an engaging article about {{topic}} that maintains conversation continuity.
         
-        The article should:
-        1. Have a compelling headline
-        2. Include an engaging introduction
-        3. Cover the main points from the research
-        4. Be well-structured with clear sections
-        5. Include practical insights or takeaways
-        6. Have a strong conclusion
+        {context_prompt}
         
-        Target length: 500-800 words
-        Format: Markdown
-        Tone: Professional but accessible
+        Requirements:
+        1. Reference previous conversation when relevant
+        2. Build upon earlier discussions
+        3. Provide new insights while connecting to past topics
+        4. Maintain consistent tone and style
         """,
-        expected_output="""A well-structured article in markdown format with:
-        - Compelling headline
-        - Introduction (2-3 paragraphs)
-        - Main body with clear sections
-        - Practical insights or examples
-        - Conclusion with key takeaways
-        - Word count between 500-800 words""",
+        expected_output="A well-structured article with conversation continuity",
         agent=writer,
-        context=[research_task],
-        output_file="final_article.md"
+        context=[research_task]
     )
     
-    # Create crew
     crew = Crew(
         agents=[researcher, writer],
         tasks=[research_task, write_task],
         process=Process.sequential,
         verbose=True,
         memory=True,
-        cache=True,
-        max_rpm=10,
-        share_crew=False
+        cache=True
     )
     
     return crew
 
-def kickoff_crew(inputs: dict):
-    """Initialize crew and start the workflow"""
+def kickoff_crew_with_context(inputs: dict, conversation_context: List[Dict] = None):
+    """Execute crew with conversation context"""
     try:
-        crew = create_crew()
+        crew = create_crew_with_context(conversation_context)
         result = crew.kickoff(inputs=inputs)
         
         return {
@@ -119,11 +102,6 @@ def kickoff_crew(inputs: dict):
             "message": f"Error during crew execution: {str(e)}"
         }
 
-def get_crew_status():
-    """Get current crew configuration"""
-    return {
-        "agents": ["Senior Research Analyst", "Content Writer"],
-        "tasks": ["Research Task", "Writing Task"],
-        "process": "Sequential",
-        "status": "Ready"
-    }
+# Backward compatibility
+def kickoff_crew(inputs: dict):
+    return kickoff_crew_with_context(inputs, None)
