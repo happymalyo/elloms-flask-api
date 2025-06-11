@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+crewai
+crewai-tools
+python-dotenv
+pydantic 
+sqlalchemy
+asyncpg
+alembic
+python-multipart
+bcrypt
+python-jose[cryptography]
+passlib
