@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -8,6 +8,12 @@ class CrewJobBase(BaseModel):
     additional_context: Optional[str] = (None,)
     prompt: Optional[str] = (None,)
     platform: Optional[str] = None
+
+    @field_validator("platform")
+    def validate_platform(cls, v):
+        if v and v not in ["LinkedIn", "Facebook"]:
+            raise ValueError("Platform must be either 'LinkedIn' or 'Facebook'")
+        return v
 
 
 class CrewJobCreate(CrewJobBase):
