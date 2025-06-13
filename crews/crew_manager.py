@@ -8,7 +8,8 @@ load_dotenv()
 
 def create_crew_with_context(
     conversation_context: List[Dict] = None,
-    prompt: Optional[str] = None,
+    topic: str = None,
+    additional_context: Optional[str] = None,
     platform: Optional[str] = None,
 ):
     """Create crew with conversation context"""
@@ -25,8 +26,8 @@ def create_crew_with_context(
     content_creator = Agent(
         role="Social Media Content Creator",
         goal="""Create engaging and professional social media posts 
-        based on given prompts in the same language as the provided 
-        prompt and context (e.g., if the prompt is in French, the post must be in French).""",
+        based on given topic in the same language as the provided 
+        topic and context (e.g., if the topic is in French, the post must be in French).""",
         verbose=True,
         memory=True,
         backstory=f"""ou're an experienced social media content creator with expertise in crafting 
@@ -41,8 +42,9 @@ def create_crew_with_context(
     if platform:
         task_description = f"""
         Create an engaging social media post based on the provided topic.
-        {f"Use the following prompt: {prompt}" if prompt else "Follow the default content creation guidelines."}
+        {f"Use the following topic: {topic}" if topic else "Follow the default content creation guidelines."}
         Target platform: {platform}
+        {f"For post Tone : Use {additional_context}" if additional_context else "Follow the default content creation guidelines." }
         Generate one post tailored specifically for {platform}.
         Use a tone and style appropriate for {platform}.
         Include relevant hashtags and a call-to-action where appropriate.
@@ -52,7 +54,8 @@ def create_crew_with_context(
     else:
         task_description = f"""
         Create engaging social media posts based on the provided topic.
-        {f"Use the following prompt: {prompt}" if prompt else "Follow the default content creation guidelines."}
+        {f"Use the following topic: {topic}" if topic else "Follow the default content creation guidelines."}
+        {f"For post Tone : Use {additional_context}" if additional_context else "Follow the default content creation guidelines." }
         Generate two versions:
         1. A professional LinkedIn post that maintains business etiquette
         2. A more casual Facebook post that remains appropriate for business
@@ -60,7 +63,7 @@ def create_crew_with_context(
         Include relevant hashtags and call-to-actions where appropriate.
         {context_prompt}
         """
-        expected_output = "Two formatted social media posts (LinkedIn and Facebook versions) based on the input prompt, with appropriate tone, style, and hashtags for each platform."
+        expected_output = "Two formatted social media posts (LinkedIn and Facebook versions) based on the input topic, with appropriate tone, style, and hashtags for each platform."
 
     content_creator_task = Task(
         description=task_description,
@@ -84,10 +87,13 @@ def create_crew_with_context(
 def kickoff_crew_with_context(inputs: dict, conversation_context: List[Dict] = None):
     """Execute crew with conversation context"""
     try:
-        prompt = inputs.get("prompt")
+        topic = inputs.get("topic")
         platform = inputs.get("platform")
+        additional_context = inputs.get("additional_context")
 
-        crew = create_crew_with_context(conversation_context, prompt, platform)
+        crew = create_crew_with_context(
+            conversation_context, topic, additional_context, platform
+        )
         result = crew.kickoff(inputs=inputs)
 
         return {

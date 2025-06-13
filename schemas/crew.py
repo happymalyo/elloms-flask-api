@@ -6,7 +6,6 @@ from typing import Optional
 class CrewJobBase(BaseModel):
     topic: str = Field(..., min_length=3, max_length=500)
     additional_context: Optional[str] = (None,)
-    prompt: Optional[str] = (None,)
     platform: Optional[str] = None
 
     @field_validator("platform")
