@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from database.connection import get_async_db, create_tables
 from database import crud
@@ -16,7 +17,7 @@ from schemas.conversation import (
     Message,
     MessageCreate,
 )
-from schemas.crew import CrewJob, CrewJobCreate
+from schemas.crew import CrewJob, CrewJobCreate, UpdateResult, CrewJobUpdate
 from crews.crew_manager import kickoff_crew_with_context
 
 # Initialize FastAPI
@@ -25,6 +26,14 @@ app = FastAPI(
     description="AI agent system with user authentication and conversation history",
     version="2.0.0",
     root_path="/api",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, OPTIONS, etc.)
+    allow_headers=["*"],  # Allows all headers (Authorization, Content-Type, etc.)
 )
 
 # Security
@@ -173,12 +182,15 @@ async def add_message(
 async def kickoff_crew_async(
     job_data: CrewJobCreate,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     # Create crew job in database
     crew_job = await crud.create_crew_job(
-        db=db, user_id=current_user.id, job_data=job_data
+        # db=db, user_id=current_user.id, job_data=job_data
+        db=db,
+        user_id=1,
+        job_data=job_data,
     )
 
     # Add user message to conversation if conversation_id provided
@@ -206,10 +218,10 @@ async def kickoff_crew_async(
 @app.get("/crew/jobs/{job_id}", response_model=CrewJob)
 async def get_crew_job(
     job_id: str,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    job = await crud.get_crew_job(db, job_id=job_id, user_id=current_user.id)
+    job = await crud.get_crew_job(db, job_id=job_id, user_id=1)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
@@ -219,12 +231,10 @@ async def get_crew_job(
 async def get_user_jobs(
     skip: int = 0,
     limit: int = 50,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await crud.get_user_crew_jobs(
-        db, user_id=current_user.id, skip=skip, limit=limit
-    )
+    return await crud.get_user_crew_jobs(db, user_id=1, skip=skip, limit=limit)
 
 
 # Background task function
@@ -288,6 +298,44 @@ async def run_crew_background_with_db(job_id: str, inputs: dict):
                     completed_at=datetime.utcnow(),
                 ),
             )
+
+
+@app.patch("/crew/jobs/{job_id}")
+async def update_crew_job(
+    job_id: str,
+    request: UpdateResult,
+    db: AsyncSession = Depends(get_async_db),
+) -> dict[str, Any]:
+    try:
+        result = {
+            "status": "success",
+            "result": str(request.text),
+            "message": "Crew execution completed successfully",
+        }
+
+        updated_job = await crud.update_crew_job(
+            db,
+            job_id,
+            CrewJobUpdate(
+                status="completed",
+                result=str(result),
+                update_at=datetime.utcnow(),
+            ),
+        )
+
+        if not updated_job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "message": "Crew job updated",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error occurred during job update: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

@@ -19,11 +19,16 @@ class CrewJobCreate(CrewJobBase):
     conversation_id: Optional[int] = None
 
 
+class UpdateResult(BaseModel):
+    text: Optional[str] = None
+
+
 class CrewJobUpdate(BaseModel):
     status: Optional[str] = None
     result: Optional[str] = None
     error_message: Optional[str] = None
     completed_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class CrewJob(CrewJobBase):
