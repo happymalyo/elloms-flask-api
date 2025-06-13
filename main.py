@@ -18,7 +18,7 @@ from schemas.conversation import (
     MessageCreate,
 )
 from schemas.crew import CrewJob, CrewJobCreate, UpdateResult, CrewJobUpdate
-from crews.crew_manager import kickoff_crew_with_context
+from crews.crew_manager import kickoff_crew_with_context, kickoff_crew_for_image
 
 # Initialize FastAPI
 app = FastAPI(
@@ -227,6 +227,22 @@ async def get_crew_job(
     return job
 
 
+@app.post("/crew/generated-image/{job_id}")
+async def start_image_job(
+    job_id: str, job_data: CrewJobCreate, background_tasks: BackgroundTasks
+):
+    background_tasks.add_task(
+        run_crew_for_image_background, job_id, job_data.model_dump()
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "Generating image",
+        "message": "Crew job image started",
+        "data": job_data.model_dump(),
+    }
+
+
 @app.get("/crew/jobs", response_model=List[CrewJob])
 async def get_user_jobs(
     skip: int = 0,
@@ -249,9 +265,8 @@ async def run_crew_background_with_db(job_id: str, inputs: dict):
             await crud.update_crew_job(db, job_id, CrewJobUpdate(status="running"))
 
             # Get conversation context if available
-            job = await crud.get_crew_job(
-                db, job_id, None
-            )  # Get job without user check for background task
+            job = await crud.get_crew_job(db, job_id, None)
+            # Get job without user check for background task
             conversation_context = []
 
             if job and job.conversation_id:
@@ -296,6 +311,43 @@ async def run_crew_background_with_db(job_id: str, inputs: dict):
                     status="failed",
                     error_message=str(e),
                     completed_at=datetime.utcnow(),
+                ),
+            )
+
+
+async def run_crew_for_image_background(job_id: str, inputs: dict):
+    """Run crew task for image and update database"""
+    from database.connection import AsyncSessionLocal
+    from schemas.crew import CrewJobUpdate
+
+    async with AsyncSessionLocal() as db:
+        try:
+            # Update image status to running
+            await crud.update_crew_job(
+                db, job_id, CrewJobUpdate(image_status="running")
+            )
+
+            # Execute crew with context
+            suggested_images = kickoff_crew_for_image(inputs)
+
+            # Update job with result
+            await crud.update_crew_job(
+                db,
+                job_id,
+                CrewJobUpdate(
+                    image_status="compteted",
+                    images=str(suggested_images),
+                ),
+            )
+
+        except Exception as e:
+            # Update job with error
+            await crud.update_crew_job(
+                db,
+                job_id,
+                CrewJobUpdate(
+                    image_status="failed",
+                    error_message=str(e),
                 ),
             )
 

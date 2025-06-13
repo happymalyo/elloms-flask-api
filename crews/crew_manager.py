@@ -2,6 +2,7 @@ import os
 from crewai import Agent, Task, Crew, Process
 from dotenv import load_dotenv
 from typing import List, Dict, Optional
+from crewai_tools import DallETool
 
 load_dotenv()
 
@@ -27,10 +28,11 @@ def create_crew_with_context(
         role="Social Media Content Creator",
         goal="""Create engaging and professional social media posts 
         based on given topic in the same language as the provided 
-        topic and context (e.g., if the topic is in French, the post must be in French).""",
+        topic and context (e.g., if the topic is in French, the post must be in French).
+        """,
         verbose=True,
         memory=True,
-        backstory=f"""ou're an experienced social media content creator with expertise in crafting 
+        backstory=f"""You're an experienced social media content creator with expertise in crafting 
         compelling posts for LinkedIn and Facebook. You understand the different tones 
         and styles appropriate for each platform and know how to maximize engagement 
         while maintaining professionalism. Your posts consistently achieve high 
@@ -84,6 +86,59 @@ def create_crew_with_context(
     return crew
 
 
+def create_crew_for_image(
+    topic: str = None,
+    additional_context: Optional[str] = None,
+    platform: Optional[str] = None,
+):
+    """Create crew to generate image"""
+
+    image_generator = Agent(
+        role="Social Media Image Generator",
+        goal="Generate appropriate and engaging images tailored for the social media platform and topic.",
+        verbose=True,
+        memory=False,
+        backstory="""You're a visual content expert with deep knowledge of social media trends. 
+        You know how to create eye-catching, contextually appropriate images for different platforms. 
+        You always tailor the visuals to match the tone and audience expectations for LinkedIn and Facebook.""",
+        tools=[DallETool()],
+        allow_delegation=False,
+    )
+
+    if platform == "LinkedIn":
+        image_prompt = "A professional photo of a human or a group of professionals in a business setting"
+    elif platform == "Facebook":
+        # Use topic and additional_context if available
+        image_prompt = f"Create an image that reflects the topic: '{topic}'"
+        if additional_context:
+            image_prompt += f" with the context: {additional_context}"
+    else:
+        image_prompt = f"A relevant and engaging image based on the topic: '{topic}'"
+
+    image_task = Task(
+        description=f"""Generate 2 relevant, medium-sized images for a {platform} post.
+        Use this prompt:
+        {image_prompt}
+        Use realistic and engaging imagery that matches the platform's tone and audience.
+        Return only the direct image links in a Python array, like:
+        ["https://image1.com", "https://image2.com"]
+        No additional text or explanation.""",
+        expected_output="A Python array with two direct image URLs, like: ['link1', 'link2']",
+        agent=image_generator,
+    )
+
+    crew = Crew(
+        agents=[image_generator],
+        tasks=[image_task],
+        process=Process.sequential,
+        verbose=True,
+        memory=True,
+        cache=True,
+    )
+
+    return crew
+
+
 def kickoff_crew_with_context(inputs: dict, conversation_context: List[Dict] = None):
     """Execute crew with conversation context"""
     try:
@@ -106,6 +161,26 @@ def kickoff_crew_with_context(inputs: dict, conversation_context: List[Dict] = N
             "status": "error",
             "result": None,
             "message": f"Error during crew execution: {str(e)}",
+        }
+
+
+def kickoff_crew_for_image(inputs: dict):
+    """Execute crew for image"""
+    try:
+        topic = inputs.get("topic")
+        platform = inputs.get("platform")
+        additional_context = inputs.get("additional_context")
+
+        image_crew = create_crew_for_image(topic, additional_context, platform)
+        result = image_crew.kickoff(inputs=inputs)
+
+        return result
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "result": None,
+            "message": f"Error during crew image execution: {str(e)}",
         }
 
 
