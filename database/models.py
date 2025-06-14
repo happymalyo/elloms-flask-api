@@ -76,13 +76,14 @@ class CrewJob(Base):
     topic = Column(String(500), nullable=False)
     platform = Column(String(500), nullable=True)
     additional_context = Column(Text, nullable=True)
-    status = Column(
-        String(20), default="pending"
-    )  # pending, running, completed, failed
+    status = Column(String(20), default="pending")
+    image_status = Column(String(20), default="pending")
+    images = Column(Text, nullable=True)
     result = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="crew_jobs")

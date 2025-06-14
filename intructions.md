@@ -1,6 +1,6 @@
 ### create migration
 
-- alembic revision --autogenerate -m "add platfomr in crew job"
+- alembic revision --autogenerate -m "add crew for image"
 
 ### apply migration
 

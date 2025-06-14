@@ -3,6 +3,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 import uuid
+import json
 from datetime import datetime
 from passlib.context import CryptContext
 
@@ -159,6 +160,29 @@ async def update_crew_job(
 
     if db_job:
         update_data = job_update.model_dump(exclude_unset=True)
+
+        # Convert result dict to proper JSON string if it exists
+        if "result" in update_data and update_data["result"] is not None:
+            if isinstance(update_data["result"], dict):
+                update_data["result"] = json.dumps(update_data["result"])
+            elif isinstance(update_data["result"], str):
+                try:
+                    # If it's already a JSON string, ensure it's properly formatted
+                    json.loads(update_data["result"])
+                except json.JSONDecodeError:
+                    # If it's a Python dict string, convert it properly
+                    try:
+                        # Safely evaluate the string as Python dict
+                        import ast
+
+                        parsed = ast.literal_eval(update_data["result"])
+                        update_data["result"] = json.dumps(parsed)
+                    except:
+                        # If all else fails, keep as-is but wrap in JSON
+                        update_data["result"] = json.dumps(
+                            {"raw_result": update_data["result"]}
+                        )
+
         for field, value in update_data.items():
             setattr(db_job, field, value)
 
@@ -187,4 +211,5 @@ async def get_user_crew_jobs(
         .offset(skip)
         .limit(limit)
     )
+
     return result.scalars().all()

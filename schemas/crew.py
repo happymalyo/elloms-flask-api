@@ -6,25 +6,25 @@ from typing import Optional
 class CrewJobBase(BaseModel):
     topic: str = Field(..., min_length=3, max_length=500)
     additional_context: Optional[str] = (None,)
-    prompt: Optional[str] = (None,)
     platform: Optional[str] = None
-
-    @field_validator("platform")
-    def validate_platform(cls, v):
-        if v and v not in ["LinkedIn", "Facebook"]:
-            raise ValueError("Platform must be either 'LinkedIn' or 'Facebook'")
-        return v
 
 
 class CrewJobCreate(CrewJobBase):
     conversation_id: Optional[int] = None
 
 
+class UpdateResult(BaseModel):
+    text: Optional[str] = None
+
+
 class CrewJobUpdate(BaseModel):
     status: Optional[str] = None
+    image_status: Optional[str] = None
     result: Optional[str] = None
     error_message: Optional[str] = None
     completed_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    images: Optional[str] = None
 
 
 class CrewJob(CrewJobBase):
@@ -33,6 +33,8 @@ class CrewJob(CrewJobBase):
     user_id: int
     conversation_id: Optional[int] = None
     status: str
+    image_status: Optional[str] = None
+    images: Optional[str] = None
     result: Optional[str] = None
     error_message: Optional[str] = None
     started_at: datetime
