@@ -2,7 +2,7 @@ import os
 from crewai import Agent, Task, Crew, Process
 from dotenv import load_dotenv
 from typing import List, Dict, Optional
-from crewai_tools import DallETool
+from crewai_tools import SerperDevTool
 
 load_dotenv()
 
@@ -94,36 +94,37 @@ def create_crew_for_image(
     """Create crew to generate image"""
 
     image_generator = Agent(
-        role="Social Media Image Generator",
-        goal="Generate appropriate and engaging images tailored for the social media platform and topic.",
+        role="Social Media Image Searcher",
+        goal="Find high-quality, royalty-free images from Unsplash or Pexels tailored for the social media platform and topic.",
         verbose=True,
         memory=False,
-        backstory="""You're a visual content expert with deep knowledge of social media trends. 
-        You know how to create eye-catching, contextually appropriate images for different platforms. 
-        You always tailor the visuals to match the tone and audience expectations for LinkedIn and Facebook.""",
-        tools=[DallETool()],
+        backstory="""You're a visual content curator with expertise in sourcing royalty-free images for social media. 
+        You excel at finding engaging, high-quality images on Unsplash and Pexels that align with the tone, topic, and audience of platforms like LinkedIn and Facebook. 
+        Your selections always enhance the post's appeal and relevance.""",
+        tools=[SerperDevTool()],
         allow_delegation=False,
     )
 
+    # Platform-specific search queries
     if platform == "LinkedIn":
-        image_prompt = "A professional photo of a human or a group of professionals in a business setting"
+        image_prompt = "Find a public professional photo based on {topic}"
     elif platform == "Facebook":
-        # Use topic and additional_context if available
-        image_prompt = f"Create an image that reflects the topic: '{topic}'"
+        image_prompt = f"site:(unsplash.com | pexels.com) {topic}"
         if additional_context:
-            image_prompt += f" with the context: {additional_context}"
+            image_prompt += f" {additional_context}"
     else:
-        image_prompt = f"A relevant and engaging image based on the topic: '{topic}'"
+        image_prompt = f"site:(unsplash.com | pexels.com) {topic}"
 
+    # Define the Image Search Task
     image_task = Task(
-        description=f"""Generate 2 relevant, medium-sized images for a {platform} post.
-        Use this prompt:
+        description=f"""Search Unsplash or Pexels for 2 high-quality, royalty-free images for a {platform} post.
+        Use this search query:
         {image_prompt}
-        Use realistic and engaging imagery that matches the platform's tone and audience.
-        Return only the direct image links in a Python array, like:
-        ["https://image1.com", "https://image2.com"]
+        Ensure the images are realistic, engaging, and match the platform's tone and audience.
+        Return only the direct public image links in a Javascript array, like:
+        ["https://images.unsplash.com/photo-123...", "https://images.pexels.com/photos/456..."]
         No additional text or explanation.""",
-        expected_output="A Python array with two direct image URLs, like: ['link1', 'link2']",
+        expected_output='An array with two direct image URLs, like: ["link1", "ink2"]',
         agent=image_generator,
     )
 

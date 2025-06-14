@@ -211,4 +211,5 @@ async def get_user_crew_jobs(
         .offset(skip)
         .limit(limit)
     )
+
     return result.scalars().all()

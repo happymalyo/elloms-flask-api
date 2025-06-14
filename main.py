@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
 from typing import Optional, List, Any
+import json
 
 from database.connection import get_async_db, create_tables
 from database import crud
@@ -335,7 +336,7 @@ async def run_crew_for_image_background(job_id: str, inputs: dict):
                 db,
                 job_id,
                 CrewJobUpdate(
-                    image_status="compteted",
+                    image_status="completed",
                     images=str(suggested_images),
                 ),
             )
