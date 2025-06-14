@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -26,9 +24,23 @@ services:
     networks:
       - postgres-network
 
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/userdb
+    networks:
+      - postgres-network
+
 networks:
   postgres-network:
     driver: bridge
 
 volumes:
-  postgres_data: 
+  postgres_data:
